@@ -2,7 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from './store';
 import { engine } from './audioEngine';
 import { exporter } from './exporter';
-import { Play, Pause, Upload, Settings2, Command, Download, X, ChevronDown, ChevronRight, Image as ImageIcon, Video, Type, Settings, Sparkles, Folder, File, Layers } from 'lucide-react';
+import { Play, Pause, Upload, Settings2, Command, Download, X, ChevronDown, ChevronRight, Image as ImageIcon, Video, Type, Settings, Sparkles, Folder, File, Layers, GripVertical } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import VisualizerCanvas from './Visualizer';
 import './index.css';
 
@@ -13,13 +16,72 @@ function LeftSidebar() {
 
   const getIconForType = (type) => {
     switch (type) {
-      case 'image': return <ImageIcon size={14} className="text-blue-400" />;
-      case 'video': return <Video size={14} className="text-purple-400" />;
-      case 'text': return <Type size={14} className="text-green-400" />;
-      case 'spectrum-circle': return <Sparkles size={14} className="text-pink-400" />;
-      case 'particles': return <Sparkles size={14} className="text-yellow-400" />;
-      default: return <File size={14} className="text-gray-400" />;
+      case 'image': return <ImageIcon size={14} className="text-blue-400 shrink-0" />;
+      case 'video': return <Video size={14} className="text-purple-400 shrink-0" />;
+      case 'text': return <Type size={14} className="text-green-400 shrink-0" />;
+      case 'spectrum-circle': return <Sparkles size={14} className="text-pink-400 shrink-0" />;
+      case 'particles': return <Sparkles size={14} className="text-yellow-400 shrink-0" />;
+      default: return <File size={14} className="text-gray-400 shrink-0" />;
     }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // minimum drag distance before triggering
+      }
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      // Re-order mapping because visually the list is rendered reversed 
+      // but in data we want the top-most visual element to be at the end of the array
+      const items = [...layers].reverse();
+      const oldIndex = items.findIndex(i => i.id === active.id);
+      const newIndex = items.findIndex(i => i.id === over.id);
+
+      const newVisualOrder = arrayMove(items, oldIndex, newIndex);
+      // reverse it back before saving to state
+      useStore.getState().reorderLayers([...newVisualOrder].reverse());
+    }
+  };
+
+  const SortableLayerItem = ({ layer, isSelected, onClick }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: layer.id });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      zIndex: isDragging ? 2 : 1,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`flex items-center gap-2 p-1.5 rounded text-xs transition-colors ${isSelected ? 'bg-accent/20 text-white' : 'text-muted hover:bg-white/5 hover:text-white'} ${isDragging ? 'opacity-50 ring-1 ring-accent scale-[1.02]' : ''}`}
+      >
+        <div
+          className="cursor-grab hover:text-white text-white/30 shrink-0 active:cursor-grabbing px-1 h-full flex items-center"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical size={12} />
+        </div>
+        <div
+          className="flex items-center gap-2 cursor-pointer flex-grow overflow-hidden"
+          onClick={onClick}
+        >
+          {getIconForType(layer.type)}
+          <span className="truncate">{layer.name}</span>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -42,18 +104,20 @@ function LeftSidebar() {
           </div>
 
           {layersOpen && (
-            <div className="flex-col pl-6 mt-1 gap-0.5 border-l border-white/5 ml-2.5">
-              {/* Render layers in reverse so visually top = top layer */}
-              {[...layers].reverse().map(layer => (
-                <div
-                  key={layer.id}
-                  onClick={() => setSelectedLayerId(layer.id)}
-                  className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs ${selectedLayerId === layer.id ? 'bg-accent/20 text-white' : 'text-muted hover:bg-white/5 hover:text-white'}`}
-                >
-                  {getIconForType(layer.type)}
-                  <span className="truncate flex-grow">{layer.name}</span>
-                </div>
-              ))}
+            <div className="flex-col pl-2 pr-1 mt-1 gap-0.5 border-l border-white/5 ml-2.5 min-h-[50px]">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={[...layers].reverse().map(l => l.id)} strategy={verticalListSortingStrategy}>
+                  {/* Render layers in reverse so visually top = top layer */}
+                  {[...layers].reverse().map(layer => (
+                    <SortableLayerItem
+                      key={layer.id}
+                      layer={layer}
+                      isSelected={selectedLayerId === layer.id}
+                      onClick={() => setSelectedLayerId(layer.id)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
               <div
                 className="flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs text-muted hover:bg-white/5 hover:text-white mt-1 opacity-70 border border-dashed border-white/10"
                 onClick={() => addLayer({
@@ -217,8 +281,23 @@ function RightSidebar() {
         />
       </div>
 
-      {layer.content !== undefined && (
-        <div className="flex-col gap-2 mt-1">
+      <div className="flex-col gap-1 mt-2">
+        <label className="text-xs text-muted">Layer Type</label>
+        <select
+          className="glass-input text-sm p-1.5 w-full capitalize"
+          value={layer.type}
+          onChange={(e) => updateLayer(layer.id, { type: e.target.value })}
+        >
+          <option value="text">Text</option>
+          <option value="image">Image</option>
+          <option value="video">Video</option>
+          <option value="spectrum-circle">Spectrum Circle</option>
+          <option value="particles">Particles</option>
+        </select>
+      </div>
+
+      {layer.content !== undefined && layer.type !== 'spectrum-circle' && layer.type !== 'particles' && (
+        <div className="flex-col gap-2 mt-2">
           <label className="text-xs text-muted">{layer.type === 'video' || layer.type === 'image' ? 'Media Source' : 'Content Text'}</label>
           {(layer.type === 'video' || layer.type === 'image') && (
             <div className="flex items-center gap-2">
@@ -242,7 +321,7 @@ function RightSidebar() {
           )}
           <input
             className="glass-input text-xs p-1.5 font-mono"
-            placeholder="Or paste URL here..."
+            placeholder={layer.type === 'text' ? "Write something..." : "Or paste URL here..."}
             value={layer.content}
             onChange={(e) => updateLayer(layer.id, { content: e.target.value })}
           />
@@ -464,36 +543,49 @@ function Timeline() {
 
   return (
     <>
-      <div className="glass-panel h-16 flex items-center p-4 justify-between z-10 border-b-0 border-x-0 rounded-none bg-black/40">
-        <div className="flex items-center gap-4">
-          <button className="glass-button primary w-10 h-10 p-0 rounded-full flex justify-center items-center shrink-0" onClick={togglePlay} disabled={isExporting}>
-            {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-1" />}
-          </button>
+      <div className="glass-panel h-48 flex-col z-10 border-b-0 border-x-0 rounded-none bg-[#16161e]/90 shrink-0">
+        <div className="flex-grow flex items-center justify-center p-4 border-b border-white/5 relative overflow-hidden bg-black/40">
+          {/* Future Waveform Component Area */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-30 select-none text-xs font-mono tracking-widest text-muted">
+            {audioFile ? `[ Audio Track Loaded - ${Math.round(engine.audio.duration || 0)}s ]` : "[ Drop Audio File Here ]"}
+          </div>
 
-          <input type="file" ref={fileInputRef} accept="audio/*" className="hidden" onChange={handleFileChange} />
-
-          <div className="text-xs font-mono bg-black/40 px-3 py-1.5 rounded-md border border-white/5 whitespace-nowrap">
-            {audioFile ? `Loaded (${engine.audio.duration ? Math.round(engine.audio.duration) + 's' : ''})` : "No Audio"}
+          {/* Terminal overlaying the waveform view, keeping it centered */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full flex justify-center z-10">
+            <Terminal />
           </div>
         </div>
 
-        <Terminal />
+        <div className="h-16 flex items-center p-4 justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <button className="glass-button primary w-10 h-10 p-0 rounded-full flex justify-center items-center shrink-0 shadow-lg shadow-accent/20" onClick={togglePlay} disabled={isExporting}>
+              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-1" />}
+            </button>
 
-        <div className="flex gap-2 shrink-0">
-          <button className="glass-button text-xs" onClick={() => fileInputRef.current?.click()} disabled={isExporting}>
-            <Upload size={14} /> Load MP3
-          </button>
-          <button className="glass-button primary text-xs" onClick={() => setShowExportModal(true)} disabled={isExporting || !audioFile}>
-            <Download size={14} /> {isExporting ? `Exporting...` : "Export Video"}
-          </button>
+            <input type="file" ref={fileInputRef} accept="audio/*" className="hidden" onChange={handleFileChange} />
+
+            <div className="text-xs font-mono bg-black/40 px-3 py-1.5 rounded-md border border-white/5 whitespace-nowrap hidden md:block">
+              {audioFile ? `Track Loaded` : "No Audio"}
+            </div>
+
+            <button className="glass-button text-xs font-medium" onClick={() => fileInputRef.current?.click()} disabled={isExporting}>
+              <Upload size={14} className="mr-1" /> {audioFile ? 'Change MP3' : 'Load MP3'}
+            </button>
+          </div>
+
+          <div className="flex gap-2 shrink-0">
+            <button className="glass-button primary text-xs uppercase tracking-wider font-bold" onClick={() => setShowExportModal(true)} disabled={isExporting || !audioFile}>
+              <Download size={14} className="mr-1" /> {isExporting ? `Exporting...` : "Render Video"}
+            </button>
+          </div>
         </div>
       </div>
 
       {showExportModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="glass-panel w-[600px] p-6 flex-col gap-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-md">
+          <div className="glass-panel w-[600px] p-6 flex-col gap-4 border border-white/10 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Export Settings</h2>
+              <h2 className="text-xl font-bold uppercase tracking-widest">Export Settings</h2>
               <button onClick={() => !isExporting && setShowExportModal(false)} className="text-muted hover:text-white disabled:opacity-50" disabled={isExporting}>
                 <X size={20} />
               </button>
@@ -501,9 +593,9 @@ function Timeline() {
 
             <div className="flex gap-4 mb-4">
               <div className="flex-col gap-1 w-full">
-                <label className="text-xs text-muted">FFmpeg Preset (Speed vs Size)</label>
+                <label className="text-xs text-muted uppercase tracking-wider">FFmpeg Preset</label>
                 <select
-                  className="glass-input p-2"
+                  className="glass-input p-2 font-mono text-sm"
                   value={preset}
                   onChange={(e) => setPreset(e.target.value)}
                   disabled={isExporting}
@@ -520,10 +612,10 @@ function Timeline() {
                 </select>
               </div>
               <div className="flex-col gap-1 w-full">
-                <label className="text-xs text-muted">CRF (Quality: 0-51, lower is better)</label>
+                <label className="text-xs text-muted uppercase tracking-wider">CRF (Quality: 0-51)</label>
                 <input
                   type="number"
-                  className="glass-input p-2"
+                  className="glass-input p-2 font-mono text-sm"
                   value={crf}
                   onChange={(e) => setCrf(e.target.value)}
                   min="0" max="51"
@@ -534,23 +626,23 @@ function Timeline() {
 
             {isExporting ? (
               <div className="flex-col gap-2 mt-4">
-                <div className="flex justify-between text-sm">
-                  <span className="capitalize">{progressInfo.phase} Phase...</span>
+                <div className="flex justify-between text-sm font-mono tracking-wider">
+                  <span className="uppercase">{progressInfo.phase} Phase...</span>
                   <span>{Math.round(progressInfo.progress * 100)}%</span>
                 </div>
-                <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-black/50 h-3 rounded-full overflow-hidden border border-white/5">
                   <div
-                    className="bg-accent h-full transition-all duration-300"
+                    className="bg-accent h-full transition-all duration-300 shadow-[0_0_10px_rgba(123,97,255,0.8)]"
                     style={{ width: `${progressInfo.progress * 100}%` }}
                   />
                 </div>
                 {progressInfo.eta != null && (
-                  <div className="text-xs text-muted mt-1">
-                    Estimated time remaining: {Math.round(progressInfo.eta)}s
+                  <div className="text-xs text-muted mt-1 font-mono">
+                    ETA: {Math.round(progressInfo.eta)}s
                   </div>
                 )}
 
-                <div className="mt-4 bg-black/50 border border-white/10 rounded-md p-2 h-32 overflow-y-auto font-mono text-[10px] text-muted flex-col gap-1 flex-col-reverse">
+                <div className="mt-4 bg-black/80 border border-white/10 rounded-md p-3 h-32 overflow-y-auto font-mono text-[10px] text-muted flex-col gap-1 flex-col-reverse shadow-inner">
                   {logs.slice().reverse().map((log, i) => (
                     <div key={i}>{log}</div>
                   ))}
@@ -558,10 +650,10 @@ function Timeline() {
               </div>
             ) : (
               <button
-                className="glass-button primary w-full mt-4"
+                className="glass-button primary w-full mt-4 py-3 uppercase tracking-widest font-bold"
                 onClick={startExport}
               >
-                Start Render
+                Start Render Process
               </button>
             )}
           </div>
@@ -573,8 +665,11 @@ function Timeline() {
 
 function MainCanvas() {
   return (
-    <div className="flex-grow relative bg-black/20" style={{ zIndex: 0 }}>
-      <VisualizerCanvas />
+    <div className="flex-grow flex items-center justify-center p-4 min-w-[500px] z-0 overflow-hidden relative">
+      {/* Container simulating a video editor monitor view */}
+      <div className="w-full flex-grow max-w-[1280px] aspect-video relative rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 overflow-hidden bg-black flex shrink-0">
+        <VisualizerCanvas />
+      </div>
     </div>
   );
 }
@@ -583,10 +678,10 @@ function App() {
   return (
     <div className="flex flex-col w-screen h-screen bg-bg-color text-white overflow-hidden">
       {/* Top Header/Menu Bar (Optional) */}
-      <div className="h-10 bg-[#0a0a0e] border-b border-white/5 flex items-center px-4 justify-between select-none">
+      <div className="h-10 bg-[#0a0a0e] border-b border-white/5 flex items-center px-4 justify-between select-none shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-accent-color opacity-80" style={{ background: 'var(--accent-color)' }}></div>
-          <span className="font-bold tracking-widest text-xs uppercase opacity-80">VIZZO</span>
+          <span className="font-bold tracking-widest text-xs uppercase opacity-80">VIBE VISUALIZER</span>
         </div>
         <div className="flex gap-4 text-[11px] font-medium text-muted uppercase tracking-wider">
           <span className="hover:text-white cursor-pointer relative after:absolute after:bottom-[-12px] after:left-0 after:w-full after:h-[2px] after:bg-accent-color">View</span>
