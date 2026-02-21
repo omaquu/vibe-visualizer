@@ -2,6 +2,25 @@ export class AudioEngine {
     constructor() {
         this.audio = new Audio();
         this.audio.crossOrigin = "anonymous";
+        this.audioContext = null;
+        this.analyzer = null;
+        this.source = null;
+        this.isInitialized = false;
+
+        // Dummy data array so initial frames don't crash
+        this.dataArray = new Uint8Array(128);
+
+        this.audioData = {
+            bass: 0,
+            mid: 0,
+            treble: 0,
+            kick: 0,
+            raw: this.dataArray
+        };
+    }
+
+    init() {
+        if (this.isInitialized) return;
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.analyzer = this.audioContext.createAnalyser();
         this.analyzer.fftSize = 256;
@@ -16,22 +35,18 @@ export class AudioEngine {
         }
 
         this.dataArray = new Uint8Array(this.analyzer.frequencyBinCount);
-
-        this.audioData = {
-            bass: 0,
-            mid: 0,
-            treble: 0,
-            kick: 0,
-            raw: this.dataArray
-        };
+        this.audioData.raw = this.dataArray;
+        this.isInitialized = true;
     }
 
     loadAudio(url) {
+        this.init();
         this.audio.src = url;
         this.audio.load();
     }
 
     play() {
+        this.init();
         if (this.audioContext.state === 'suspended') {
             this.audioContext.resume();
         }
@@ -47,7 +62,7 @@ export class AudioEngine {
     }
 
     update() {
-        if (!this.audio || this.audio.paused) return;
+        if (!this.isInitialized || !this.audio || this.audio.paused) return;
 
         this.analyzer.getByteFrequencyData(this.dataArray);
 

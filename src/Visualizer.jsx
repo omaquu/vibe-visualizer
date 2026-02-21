@@ -109,7 +109,6 @@ function TextLayer({ layer, audioData }) {
             color={layer.color || '#ffffff'}
             anchorX="center"
             anchorY="middle"
-            font="https://fonts.gstatic.com/s/inter/v14/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2"
         >
             {layer.content || 'Neon'}
             <meshBasicMaterial color={layer.color || '#ffffff'} toneMapped={false} />
@@ -236,12 +235,12 @@ function PostProcessing() {
 
 export default function VisualizerCanvas() {
     return (
-        <div className="w-full h-full bg-black absolute inset-0 -z-10">
+        <div className="w-full h-full absolute inset-0 -z-10" style={{ pointerEvents: 'none' }}>
             <Canvas
                 camera={{ position: [0, 0, 10], fov: 50 }}
-                gl={{ preserveDrawingBuffer: true, antialias: false }}
+                gl={{ preserveDrawingBuffer: true, antialias: false, alpha: true }}
+                style={{ pointerEvents: 'auto' }}
             >
-                <color attach="background" args={['#050505']} />
                 <SceneManager />
                 <PostProcessing />
             </Canvas>
