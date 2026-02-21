@@ -2,74 +2,210 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from './store';
 import { engine } from './audioEngine';
 import { exporter } from './exporter';
-import { Play, Pause, Upload, Settings2, Command, Download, X } from 'lucide-react';
+import { Play, Pause, Upload, Settings2, Command, Download, X, ChevronDown, ChevronRight, Image as ImageIcon, Video, Type, Settings, Sparkles, Folder, File, Layers } from 'lucide-react';
 import VisualizerCanvas from './Visualizer';
 import './index.css';
 
 function LeftSidebar() {
-  const { layers, selectedLayerId, setSelectedLayerId, addLayer } = useStore();
+  const { layers, selectedLayerId, setSelectedLayerId, addLayer, effects } = useStore();
+  const [layersOpen, setLayersOpen] = useState(true);
+  const [effectsOpen, setEffectsOpen] = useState(true);
+
+  const getIconForType = (type) => {
+    switch (type) {
+      case 'image': return <ImageIcon size={14} className="text-blue-400" />;
+      case 'video': return <Video size={14} className="text-purple-400" />;
+      case 'text': return <Type size={14} className="text-green-400" />;
+      case 'spectrum-circle': return <Sparkles size={14} className="text-pink-400" />;
+      case 'particles': return <Sparkles size={14} className="text-yellow-400" />;
+      default: return <File size={14} className="text-gray-400" />;
+    }
+  };
 
   return (
-    <div className="glass-panel w-64 h-full p-4 flex-col gap-4 border-l-0 border-y-0 text-sm overflow-hidden z-10">
-      <h2 className="font-semibold text-lg flex items-center gap-2 mb-2">
-        <Settings2 size={20} className="text-accent" />
-        Composition
-      </h2>
-
-      <div className="flex-col gap-2 flex-grow overflow-y-auto pr-2">
-        <div className="text-xs font-semibold text-muted tracking-wider mb-1 uppercase">Layers</div>
-        {/* Render layers in reverse so visually top = top layer */}
-        {[...layers].reverse().map(layer => (
-          <div
-            key={layer.id}
-            onClick={() => setSelectedLayerId(layer.id)}
-            className={`glass-panel p-2 cursor-pointer transition-all flex justify-between items-center ${selectedLayerId === layer.id ? 'border-accent-color' : ''}`}
-            style={{
-              borderColor: selectedLayerId === layer.id ? 'var(--accent-color)' : 'var(--glass-border)',
-              backgroundColor: selectedLayerId === layer.id ? 'rgba(123, 97, 255, 0.1)' : 'var(--glass-bg)'
-            }}
-          >
-            <div className="flex-col overflow-hidden">
-              <div className="font-medium truncate">{layer.name}</div>
-              <div className="text-[10px] text-muted capitalize opacity-70">{layer.type.replace('-', ' ')}</div>
-            </div>
-          </div>
-        ))}
+    <div className="glass-panel w-64 h-full flex-col text-sm overflow-hidden z-10 bg-[#16161e]/90 border-r border-white/5 shadow-2xl shrink-0">
+      <div className="p-3 border-b border-white/5 flex items-center gap-2 bg-black/20 font-semibold tracking-wide text-xs uppercase">
+        <Layers size={16} className="text-accent" />
+        Project Explorer
       </div>
 
-      <button className="glass-button w-full" onClick={() => addLayer({
-        id: Math.random().toString(36).substring(2, 9),
-        type: 'text',
-        name: 'New Text',
-        content: 'Vibe',
-        position: [0, 0, 2],
-        scale: 1,
-        audioReactive: { scale: { enabled: true, source: 'bass', amount: 0.1 } },
-        color: '#ffffff'
-      })}>
-        + Add Layer
-      </button>
+      <div className="flex-col flex-grow overflow-y-auto overflow-x-hidden p-2">
+        {/* Layers Folder */}
+        <div className="flex-col mb-2">
+          <div
+            className="flex items-center gap-1.5 p-1.5 hover:bg-white/5 rounded cursor-pointer select-none"
+            onClick={() => setLayersOpen(!layersOpen)}
+          >
+            {layersOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <Folder size={16} className="text-accent" fill="currentColor" fillOpacity={0.2} />
+            <span className="font-medium text-xs">Composition Layers</span>
+          </div>
+
+          {layersOpen && (
+            <div className="flex-col pl-6 mt-1 gap-0.5 border-l border-white/5 ml-2.5">
+              {/* Render layers in reverse so visually top = top layer */}
+              {[...layers].reverse().map(layer => (
+                <div
+                  key={layer.id}
+                  onClick={() => setSelectedLayerId(layer.id)}
+                  className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs ${selectedLayerId === layer.id ? 'bg-accent/20 text-white' : 'text-muted hover:bg-white/5 hover:text-white'}`}
+                >
+                  {getIconForType(layer.type)}
+                  <span className="truncate flex-grow">{layer.name}</span>
+                </div>
+              ))}
+              <div
+                className="flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs text-muted hover:bg-white/5 hover:text-white mt-1 opacity-70 border border-dashed border-white/10"
+                onClick={() => addLayer({
+                  id: Math.random().toString(36).substring(2, 9),
+                  type: 'text',
+                  name: 'New Text',
+                  content: 'Vibe',
+                  position: [0, 0, 2],
+                  scale: 1,
+                  audioReactive: { scale: { enabled: true, source: 'bass', amount: 0.1 } },
+                  color: '#ffffff'
+                })}
+              >
+                <div className="w-3.5 flex justify-center">+</div>
+                <span>Add Layer...</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Global Effects Folder */}
+        <div className="flex-col mt-2">
+          <div
+            className="flex items-center gap-1.5 p-1.5 hover:bg-white/5 rounded cursor-pointer select-none"
+            onClick={() => setEffectsOpen(!effectsOpen)}
+          >
+            {effectsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <Folder size={16} className="text-emerald-400" fill="currentColor" fillOpacity={0.2} />
+            <span className="font-medium text-xs">Global Effects</span>
+          </div>
+
+          {effectsOpen && (
+            <div className="flex-col pl-6 mt-1 gap-0.5 border-l border-white/5 ml-2.5">
+              {Object.keys(effects).map(effectKey => (
+                <div
+                  key={`effect_${effectKey}`}
+                  onClick={() => setSelectedLayerId(`effect_${effectKey}`)}
+                  className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs ${selectedLayerId === `effect_${effectKey}` ? 'bg-emerald-500/20 text-white' : 'text-muted hover:bg-white/5 hover:text-white'}`}
+                >
+                  <Settings size={14} className={effects[effectKey].enabled ? "text-emerald-400" : "text-gray-600"} />
+                  <span className="truncate flex-grow capitalize">{effectKey.replace(/([A-Z])/g, ' $1').trim()}</span>
+                  <div className={`w-2 h-2 rounded-full ${effects[effectKey].enabled ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`}></div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 function RightSidebar() {
-  const { layers, selectedLayerId, updateLayer, removeLayer } = useStore();
-  const layer = layers.find(l => l.id === selectedLayerId);
+  const { layers, selectedLayerId, updateLayer, removeLayer, effects, updateEffect } = useStore();
 
-  if (!layer) {
+  // Handle Global Effects selection
+  if (selectedLayerId && selectedLayerId.startsWith('effect_')) {
+    const effectKey = selectedLayerId.replace('effect_', '');
+    const effect = effects[effectKey];
+    if (!effect) return null;
+
     return (
-      <div className="glass-panel w-80 h-full p-4 flex-col gap-4 border-r-0 border-y-0 z-10 items-center justify-center text-muted">
-        Select a layer to edit properties
+      <div className="glass-panel w-80 h-full p-4 flex-col gap-4 border-r-0 border-y-0 z-10 overflow-y-auto bg-[#16161e]/90 shrink-0">
+        <div className="flex justify-between items-center bg-black/20 p-2 rounded-md -mx-2 -mt-2 mb-2">
+          <h3 className="font-semibold text-sm capitalize">{effectKey.replace(/([A-Z])/g, ' $1').trim()} Settings</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted">Enable</span>
+            <input
+              type="checkbox"
+              checked={effect.enabled}
+              onChange={() => updateEffect(effectKey, { enabled: !effect.enabled })}
+              className="cursor-pointer"
+            />
+          </div>
+        </div>
+
+        {effectKey === 'bloom' && effect.enabled && (
+          <>
+            <div className="flex-col gap-1">
+              <label className="text-xs text-muted mb-1">Intensity</label>
+              <div className="flex gap-2">
+                <input type="range" min="0" max="5" step="0.1" className="w-full" value={effect.intensity || 1.5} onChange={(e) => updateEffect(effectKey, { intensity: parseFloat(e.target.value) })} />
+                <span className="text-xs w-8 text-right">{effect.intensity?.toFixed(1) || 1.5}</span>
+              </div>
+            </div>
+            <div className="flex-col gap-1">
+              <label className="text-xs text-muted mb-1">Threshold</label>
+              <div className="flex gap-2">
+                <input type="range" min="0" max="1" step="0.05" className="w-full" value={effect.luminanceThreshold || 0.2} onChange={(e) => updateEffect(effectKey, { luminanceThreshold: parseFloat(e.target.value) })} />
+                <span className="text-xs w-8 text-right">{effect.luminanceThreshold?.toFixed(2) || 0.2}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {effectKey === 'noise' && effect.enabled && (
+          <div className="flex-col gap-1">
+            <label className="text-xs text-muted mb-1">Opacity</label>
+            <div className="flex gap-2">
+              <input type="range" min="0" max="1" step="0.01" className="w-full" value={effect.opacity || 0.05} onChange={(e) => updateEffect(effectKey, { opacity: parseFloat(e.target.value) })} />
+              <span className="text-xs w-8 text-right">{effect.opacity?.toFixed(2) || 0.05}</span>
+            </div>
+          </div>
+        )}
+
+        {effectKey === 'vignette' && effect.enabled && (
+          <>
+            <div className="flex-col gap-1">
+              <label className="text-xs text-muted mb-1">Darkness</label>
+              <div className="flex gap-2">
+                <input type="range" min="0" max="1" step="0.05" className="w-full" value={effect.darkness || 0.5} onChange={(e) => updateEffect(effectKey, { darkness: parseFloat(e.target.value) })} />
+                <span className="text-xs w-8 text-right">{effect.darkness?.toFixed(2) || 0.5}</span>
+              </div>
+            </div>
+            <div className="flex-col gap-1">
+              <label className="text-xs text-muted mb-1">Offset</label>
+              <div className="flex gap-2">
+                <input type="range" min="0" max="1" step="0.05" className="w-full" value={effect.offset || 0.3} onChange={(e) => updateEffect(effectKey, { offset: parseFloat(e.target.value) })} />
+                <span className="text-xs w-8 text-right">{effect.offset?.toFixed(2) || 0.3}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     );
   }
 
+  // Regular Layer Selection
+  const layer = layers.find(l => l.id === selectedLayerId);
+
+  if (!layer) {
+    return (
+      <div className="glass-panel w-80 h-full p-4 flex-col gap-4 border-r-0 border-y-0 z-10 items-center justify-center text-muted bg-[#16161e]/90 shrink-0">
+        <Layers size={32} className="opacity-20 mb-2" />
+        <span className="text-sm">Select a layer or effect</span>
+      </div>
+    );
+  }
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      updateLayer(layer.id, { content: url });
+    }
+  };
+
   return (
-    <div className="glass-panel w-80 h-full p-4 flex-col gap-4 border-r-0 border-y-0 z-10 overflow-y-auto">
+    <div className="glass-panel w-80 h-full p-4 flex-col gap-4 border-r-0 border-y-0 z-10 overflow-y-auto bg-[#16161e]/90 shrink-0">
       <div className="flex justify-between items-center bg-black/20 p-2 rounded-md -mx-2 -mt-2 mb-2">
-        <h3 className="font-semibold text-sm">Inspector</h3>
-        <button className="text-danger-color text-xs hover:underline" onClick={() => removeLayer(layer.id)}>Remove</button>
+        <h3 className="font-semibold text-sm">Layer Properties</h3>
+        <button className="text-danger-color text-xs hover:underline" onClick={() => removeLayer(layer.id)}>Delete</button>
       </div>
 
       <div className="flex-col gap-1">
@@ -82,17 +218,38 @@ function RightSidebar() {
       </div>
 
       {layer.content !== undefined && (
-        <div className="flex-col gap-1">
-          <label className="text-xs text-muted">{layer.type === 'video' || layer.type === 'image' ? 'URL' : 'Content'}</label>
+        <div className="flex-col gap-2 mt-1">
+          <label className="text-xs text-muted">{layer.type === 'video' || layer.type === 'image' ? 'Media Source' : 'Content Text'}</label>
+          {(layer.type === 'video' || layer.type === 'image') && (
+            <div className="flex items-center gap-2">
+              <button
+                className="glass-button text-xs py-1.5 px-3 whitespace-nowrap"
+                onClick={() => document.getElementById(`layer-upload-${layer.id}`)?.click()}
+              >
+                <Upload size={12} className="mr-1" /> Upload File
+              </button>
+              <input
+                id={`layer-upload-${layer.id}`}
+                type="file"
+                accept={layer.type === 'video' ? 'video/*' : 'image/*'}
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <span className="text-[10px] text-muted truncate">
+                {layer.content.startsWith('blob:') ? 'Local File' : 'External URL'}
+              </span>
+            </div>
+          )}
           <input
-            className="glass-input text-sm p-1.5"
+            className="glass-input text-xs p-1.5 font-mono"
+            placeholder="Or paste URL here..."
             value={layer.content}
             onChange={(e) => updateLayer(layer.id, { content: e.target.value })}
           />
         </div>
       )}
 
-      <div className="flex-col gap-1">
+      <div className="flex-col gap-1 mt-2">
         <label className="text-xs text-muted mb-1">Scale / Size</label>
         <div className="flex gap-2">
           <input
@@ -106,8 +263,8 @@ function RightSidebar() {
       </div>
 
       {layer.color !== undefined && (
-        <div className="flex-col gap-1">
-          <label className="text-xs text-muted">Color</label>
+        <div className="flex-col gap-1 mt-2">
+          <label className="text-xs text-muted">Color Tint</label>
           <input
             type="color"
             className="w-full h-8 bg-transparent border border-white/10 rounded cursor-pointer"
@@ -118,16 +275,16 @@ function RightSidebar() {
       )}
 
       {layer.audioReactive && layer.audioReactive.scale && (
-        <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg flex-col gap-2">
+        <div className="mt-4 p-3 bg-black/30 border border-white/5 rounded-lg flex-col gap-2 shadow-inner">
           <div className="flex justify-between items-center cursor-pointer" onClick={() => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, scale: { ...layer.audioReactive.scale, enabled: !layer.audioReactive.scale.enabled } } })}>
-            <label className="text-xs font-semibold cursor-pointer">Audio Reactivity</label>
+            <label className="text-xs font-semibold cursor-pointer tracking-wider uppercase text-accent">Audio Reactivity</label>
             <input type="checkbox" checked={layer.audioReactive.scale.enabled} className="cursor-pointer" readOnly />
           </div>
 
           {layer.audioReactive.scale.enabled && (
             <>
               <div className="flex-col gap-1 mt-2">
-                <label className="text-xs text-muted">Source</label>
+                <label className="text-xs text-muted">Frequency Source</label>
                 <select
                   className="glass-input text-xs p-1"
                   value={layer.audioReactive.scale.source}
@@ -140,7 +297,7 @@ function RightSidebar() {
                 </select>
               </div>
               <div className="flex-col gap-1 mt-2">
-                <label className="text-xs text-muted">Strength</label>
+                <label className="text-xs text-muted">Strength Multiplier</label>
                 <input
                   type="range" min="-1" max="2" step="0.05"
                   className="w-full"
