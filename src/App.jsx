@@ -20,6 +20,8 @@ function LeftSidebar() {
       case 'video': return <Video size={14} className="text-purple-400 shrink-0" />;
       case 'text': return <Type size={14} className="text-green-400 shrink-0" />;
       case 'spectrum-circle': return <Sparkles size={14} className="text-pink-400 shrink-0" />;
+      case 'glitch': return <Sparkles size={14} className="text-red-400 shrink-0" />;
+      case 'waveform': return <Sparkles size={14} className="text-orange-400 shrink-0" />;
       case 'particles': return <Sparkles size={14} className="text-yellow-400 shrink-0" />;
       default: return <File size={14} className="text-gray-400 shrink-0" />;
     }
@@ -122,6 +124,20 @@ function LeftSidebar() {
                 className="flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs text-muted hover:bg-white/5 hover:text-white mt-1 opacity-70 border border-dashed border-white/10"
                 onClick={() => addLayer({
                   id: Math.random().toString(36).substring(2, 9),
+                  type: 'waveform',
+                  name: 'New Waveform',
+                  position: [0, 0, 1],
+                  scale: 1,
+                  color: '#ff9900'
+                })}
+              >
+                <div className="w-3.5 flex justify-center">+</div>
+                <span>Add Waveform...</span>
+              </div>
+              <div
+                className="flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs text-muted hover:bg-white/5 hover:text-white mt-1 opacity-70 border border-dashed border-white/10"
+                onClick={() => addLayer({
+                  id: Math.random().toString(36).substring(2, 9),
                   type: 'text',
                   name: 'New Text',
                   content: 'Vibe',
@@ -196,8 +212,17 @@ function RightSidebar() {
 
         {effectKey === 'bloom' && effect.enabled && (
           <>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-muted">Audio Reactive Bloom</label>
+              <input 
+                type="checkbox" 
+                checked={effect.audioReactive} 
+                onChange={() => updateEffect(effectKey, { audioReactive: !effect.audioReactive })}
+                className="cursor-pointer"
+              />
+            </div>
             <div className="flex-col gap-1">
-              <label className="text-xs text-muted mb-1">Intensity</label>
+              <label className="text-xs text-muted mb-1">Base Intensity</label>
               <div className="flex gap-2">
                 <input type="range" min="0" max="5" step="0.1" className="w-full" value={effect.intensity || 1.5} onChange={(e) => updateEffect(effectKey, { intensity: parseFloat(e.target.value) })} />
                 <span className="text-xs w-8 text-right">{effect.intensity?.toFixed(1) || 1.5}</span>
@@ -292,8 +317,31 @@ function RightSidebar() {
           <option value="image">Image</option>
           <option value="video">Video</option>
           <option value="spectrum-circle">Spectrum Circle</option>
+          <option value="waveform">Waveform Bars</option>
           <option value="particles">Particles</option>
+          <option value="glitch">Glitch Plane</option>
         </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <div className="flex-col gap-1">
+          <label className="text-xs text-muted">Start Time (s)</label>
+          <input
+            type="number" step="0.1"
+            className="glass-input text-sm p-1.5 w-full"
+            value={layer.startTime || 0}
+            onChange={(e) => updateLayer(layer.id, { startTime: parseFloat(e.target.value) })}
+          />
+        </div>
+        <div className="flex-col gap-1">
+          <label className="text-xs text-muted">Duration (s)</label>
+          <input
+            type="number" step="0.1"
+            className="glass-input text-sm p-1.5 w-full"
+            value={layer.duration || 10}
+            onChange={(e) => updateLayer(layer.id, { duration: parseFloat(e.target.value) })}
+          />
+        </div>
       </div>
 
       {layer.content !== undefined && layer.type !== 'spectrum-circle' && layer.type !== 'particles' && (
@@ -353,39 +401,41 @@ function RightSidebar() {
         </div>
       )}
 
-      {layer.audioReactive && layer.audioReactive.scale && (
+      {layer.audioReactive && (
         <div className="mt-4 p-3 bg-black/30 border border-white/5 rounded-lg flex-col gap-2 shadow-inner">
-          <div className="flex justify-between items-center cursor-pointer" onClick={() => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, scale: { ...layer.audioReactive.scale, enabled: !layer.audioReactive.scale.enabled } } })}>
-            <label className="text-xs font-semibold cursor-pointer tracking-wider uppercase text-accent">Audio Reactivity</label>
-            <input type="checkbox" checked={layer.audioReactive.scale.enabled} className="cursor-pointer" readOnly />
+          <label className="text-xs font-semibold tracking-wider uppercase text-accent mb-2 block">Audio Reactivity</label>
+          
+          {/* Scale Reactivity */}
+          <div className="flex-col gap-2 border-b border-white/5 pb-2 mb-2">
+            <div className="flex justify-between items-center cursor-pointer" onClick={() => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, scale: { ...layer.audioReactive.scale, enabled: !layer.audioReactive.scale?.enabled } } })}>
+              <span className="text-xs text-muted">Scale Reactivity</span>
+              <input type="checkbox" checked={layer.audioReactive.scale?.enabled} className="cursor-pointer" readOnly />
+            </div>
+            {layer.audioReactive.scale?.enabled && (
+              <div className="flex-col gap-1 pl-2">
+                <select className="glass-input text-[10px] p-1 mb-1" value={layer.audioReactive.scale.source} onChange={(e) => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, scale: { ...layer.audioReactive.scale, source: e.target.value } } })}>
+                  <option value="bass">Bass</option><option value="mid">Mid</option><option value="treble">Treble</option><option value="kick">Kick</option>
+                </select>
+                <input type="range" min="-1" max="2" step="0.05" className="w-full" value={layer.audioReactive.scale.amount} onChange={(e) => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, scale: { ...layer.audioReactive.scale, amount: parseFloat(e.target.value) } } })} />
+              </div>
+            )}
           </div>
 
-          {layer.audioReactive.scale.enabled && (
-            <>
-              <div className="flex-col gap-1 mt-2">
-                <label className="text-xs text-muted">Frequency Source</label>
-                <select
-                  className="glass-input text-xs p-1"
-                  value={layer.audioReactive.scale.source}
-                  onChange={(e) => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, scale: { ...layer.audioReactive.scale, source: e.target.value } } })}
-                >
-                  <option value="bass">Bass</option>
-                  <option value="mid">Mid</option>
-                  <option value="treble">Treble</option>
-                  <option value="kick">Kick</option>
+          {/* Rotation Reactivity */}
+          <div className="flex-col gap-2 border-b border-white/5 pb-2 mb-2">
+            <div className="flex justify-between items-center cursor-pointer" onClick={() => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, rotation: { ...layer.audioReactive.rotation, enabled: !layer.audioReactive.rotation?.enabled } } })}>
+              <span className="text-xs text-muted">Rotation (Spin)</span>
+              <input type="checkbox" checked={layer.audioReactive.rotation?.enabled} className="cursor-pointer" readOnly />
+            </div>
+            {layer.audioReactive.rotation?.enabled && (
+              <div className="flex-col gap-1 pl-2">
+                <select className="glass-input text-[10px] p-1 mb-1" value={layer.audioReactive.rotation.source || 'kick'} onChange={(e) => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, rotation: { ...layer.audioReactive.rotation, source: e.target.value } } })}>
+                  <option value="bass">Bass</option><option value="mid">Mid</option><option value="treble">Treble</option><option value="kick">Kick</option>
                 </select>
+                <input type="range" min="-2" max="2" step="0.1" className="w-full" value={layer.audioReactive.rotation.amount || 0.5} onChange={(e) => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, rotation: { ...layer.audioReactive.rotation, amount: parseFloat(e.target.value) } } })} />
               </div>
-              <div className="flex-col gap-1 mt-2">
-                <label className="text-xs text-muted">Strength Multiplier</label>
-                <input
-                  type="range" min="-1" max="2" step="0.05"
-                  className="w-full"
-                  value={layer.audioReactive.scale.amount}
-                  onChange={(e) => updateLayer(layer.id, { audioReactive: { ...layer.audioReactive, scale: { ...layer.audioReactive.scale, amount: parseFloat(e.target.value) } } })}
-                />
-              </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -410,7 +460,10 @@ function Terminal() {
           content: title,
           position: [0, 0, 2],
           scale: 1,
-          audioReactive: { scale: { enabled: true, source: 'bass', amount: 0.2 } },
+          audioReactive: { 
+            scale: { enabled: true, source: 'bass', amount: 0.2 },
+            rotation: { enabled: true, source: 'kick', amount: 0.1 }
+          },
           color: '#ffffff'
         });
 
@@ -452,6 +505,62 @@ function Terminal() {
         }
 
         setInputVal('');
+      } else if (parts[0] === 'preset') {
+        const p = parts[1];
+        if (p === 'vaporwave') {
+            addLayer({
+                id: Math.random().toString(36).substring(2, 9),
+                type: 'spectrum-circle',
+                name: 'Vapor Ring',
+                position: [0, 0, 1],
+                scale: 1.5,
+                color: '#ff71ce',
+                audioReactive: { scale: { enabled: true, source: 'bass', amount: 0.5 } }
+            });
+            updateEffect('bloom', { enabled: true, intensity: 2.5 });
+            updateEffect('chromaticAberration', { enabled: true, offset: [0.005, 0.005] });
+        } else if (p === 'techno') {
+            addLayer({
+                id: Math.random().toString(36).substring(2, 9),
+                type: 'glitch',
+                name: 'Techno Glitch',
+                position: [0, 0, 0],
+                scale: 1,
+                color: '#00ff00',
+                audioReactive: { glitch: { enabled: true, amount: 2.0 } }
+            });
+            updateEffect('noise', { enabled: true, opacity: 0.2 });
+        }
+        setInputVal('');
+      } else if (parts[0] === 'glitch') {
+        const amount = parseFloat(parts[1]) || 1.0;
+        addLayer({
+            id: Math.random().toString(36).substring(2, 9),
+            type: 'glitch',
+            name: 'Glitch Effect',
+            position: [0, 0, 5],
+            scale: 1,
+            startTime: engine.audio.currentTime,
+            duration: 2,
+            color: '#ffffff',
+            audioReactive: { glitch: { enabled: true, amount: amount } }
+        });
+        setInputVal('');
+      } else if (parts[0] === 'text') {
+        const text = parts.slice(1).join(' ') || 'VIBE';
+        addLayer({
+            id: Math.random().toString(36).substring(2, 9),
+            type: 'text',
+            name: 'Terminal Text',
+            content: text,
+            position: [0, 0, 2],
+            scale: 1,
+            startTime: engine.audio.currentTime,
+            duration: 5,
+            color: '#ffffff',
+            audioReactive: { scale: { enabled: true, source: 'bass', amount: 0.2 } }
+        });
+        setInputVal('');
       }
     }
   };
@@ -475,7 +584,7 @@ function Terminal() {
 }
 
 function Timeline() {
-  const { isPlaying, setIsPlaying, audioFile, setAudioFile } = useStore();
+  const { isPlaying, setIsPlaying, audioFile, setAudioFile, currentTime, setCurrentTime, layers, updateLayer } = useStore();
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -491,6 +600,12 @@ function Timeline() {
       setAudioFile(url);
       engine.loadAudio(url);
     }
+  };
+
+  const handleSeek = (e) => {
+    const time = parseFloat(e.target.value);
+    engine.audio.currentTime = time;
+    setCurrentTime(time);
   };
 
   const togglePlay = () => {
@@ -541,16 +656,49 @@ function Timeline() {
     }
   };
 
+  const duration = engine.audio.duration || 0;
+
   return (
     <>
-      <div className="glass-panel h-48 flex-col z-10 border-b-0 border-x-0 rounded-none bg-[#16161e]/90 shrink-0">
-        <div className="flex-grow flex items-center justify-center p-4 border-b border-white/5 relative overflow-hidden bg-black/40">
-          {/* Future Waveform Component Area */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-30 select-none text-xs font-mono tracking-widest text-muted">
-            {audioFile ? `[ Audio Track Loaded - ${Math.round(engine.audio.duration || 0)}s ]` : "[ Drop Audio File Here ]"}
+      <div className="glass-panel h-64 flex-col z-10 border-b-0 border-x-0 rounded-none bg-[#16161e]/90 shrink-0">
+        {/* Timeline Visualization Area */}
+        <div className="flex-grow flex-col p-4 border-b border-white/5 relative overflow-y-auto bg-black/40">
+          {/* Seek Bar */}
+          <div className="sticky top-0 z-20 bg-black/60 p-1 mb-2 rounded border border-white/5">
+            <input 
+              type="range" 
+              min="0" 
+              max={duration || 100} 
+              step="0.01" 
+              value={currentTime} 
+              onChange={handleSeek}
+              className="w-full h-1 accent-accent"
+            />
+            <div className="flex justify-between text-[10px] font-mono mt-1 text-muted">
+              <span>{Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(2).padStart(5, '0')}</span>
+              <span>{Math.floor(duration / 60)}:{(duration % 60).toFixed(2).padStart(5, '0')}</span>
+            </div>
           </div>
 
-          {/* Terminal overlaying the waveform view, keeping it centered */}
+          {/* Layer Tracks */}
+          <div className="flex-col gap-1">
+            {layers.map(layer => (
+              <div key={`track-${layer.id}`} className="h-6 flex items-center gap-2 group">
+                <div className="w-24 text-[10px] truncate text-muted group-hover:text-white transition-colors">{layer.name}</div>
+                <div className="flex-grow bg-white/5 rounded h-4 relative overflow-hidden">
+                  <div 
+                    className="absolute bg-accent/40 border border-accent/60 h-full rounded cursor-pointer hover:bg-accent/60 transition-colors"
+                    style={{ 
+                      left: `${(layer.startTime / (duration || 100)) * 100}%`,
+                      width: `${(layer.duration / (duration || 100)) * 100}%`
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Terminal overlaying the waveform view */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full flex justify-center z-10">
             <Terminal />
           </div>

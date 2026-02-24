@@ -21,10 +21,13 @@ export const useStore = create((set, get) => ({
             opacity: 1,
             scale: 1,
             position: [0, 0, 0], // x, y, z
+            startTime: 0,
+            duration: 999, // infinite for now
             audioReactive: {
                 scale: { enabled: false, source: 'bass', amount: 0.1 },
                 brightness: { enabled: false, source: 'bass', amount: 0.2 },
-                shake: { enabled: false, source: 'kick', amount: 0.5 },
+                rotation: { enabled: false, source: 'kick', amount: 0.5 },
+                opacity: { enabled: false, source: 'mid', amount: 0.1 },
             },
             content: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop', // Default BG
         },
@@ -35,6 +38,8 @@ export const useStore = create((set, get) => ({
             opacity: 1,
             scale: 1,
             position: [0, 0, 1],
+            startTime: 0,
+            duration: 999,
             color: '#7b61ff', // Default primary color
             audioReactive: {
                 scale: { enabled: true, source: 'bass', amount: 0.2 },
@@ -45,7 +50,7 @@ export const useStore = create((set, get) => ({
 
     // Global Effects
     effects: {
-        bloom: { enabled: true, intensity: 1.5, luminanceThreshold: 0.2 },
+        bloom: { enabled: true, intensity: 1.5, luminanceThreshold: 0.2, audioReactive: true },
         noise: { enabled: true, opacity: 0.05 },
         vignette: { enabled: true, darkness: 0.5, offset: 0.3 },
         chromaticAberration: { enabled: false, offset: [0.002, 0.002] },
